@@ -515,6 +515,7 @@ ${GLOBAL_RULES}
 OUTPUT FORMATTING (so the draft converts cleanly to a Word doc with working links):
 - Write the blog in Markdown. Section headings use "## " (H2) and "### " (H3). Emphasis uses **bold**.
 - EVERY internal link MUST use Markdown link syntax: [anchor text](https://full-url). Wrap the actual anchor WORDS in the brackets — never paste a bare URL, never just describe the link in prose. The anchor phrase itself becomes the clickable hyperlink.
+- Use each internal URL EXACTLY as provided, character-for-character. Do NOT append or add any query string or tracking parameters (no "?utm_source=…", no "?ref=…", no "?utm_source=chatgpt.com").
 - Do not output a title/H1 line at the top of the body — start at the opening paragraph. (The H1 is delivered in the meta sets.)
 
 TONE & VOICE:
@@ -614,11 +615,24 @@ function appendCard(el,title,text){
 }
 
 /* ===================== FORMAT FOR WORD ===================== */
+// Strip tracking params (e.g. ChatGPT's ?utm_source=chatgpt.com) from a URL.
+// Tolerates &amp; because esc() runs before this.
+function cleanUrl(u){
+  const TRACK=/^(utm_[a-z]+|fbclid|gclid|mc_eid|mc_cid|igshid)$/i;
+  const qi=u.indexOf("?");
+  if(qi<0) return u;
+  const hi=u.indexOf("#",qi);
+  const hash=hi>=0?u.slice(hi):"";
+  const base=u.slice(0,qi);
+  const query=u.slice(qi+1,hi>=0?hi:undefined);
+  const kept=query.split(/&(?:amp;)?/).filter(p=>p && !TRACK.test(p.split("=")[0]));
+  return base+(kept.length?"?"+kept.join("&amp;"):"")+hash;
+}
 function mdToHtml(md){
   const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const inline=s=>{
     s=esc(s);
-    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2">$1</a>'); // links
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,(m,t,u)=>'<a href="'+cleanUrl(u)+'">'+t+"</a>"); // links (tracking stripped)
     s=s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");                      // bold
     return s;
   };
