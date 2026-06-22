@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog — Prompt Builder</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171c22; --panel2:#1d242c; --line:#2a323c;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#3b82f6; --accent2:#22c55e;
+    --warn:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{margin:0;font-size:19px}
+  header p{margin:6px 0 0;color:var(--muted);font-size:13px}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  fieldset{border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 18px;background:var(--panel)}
+  legend{padding:0 8px;font-weight:600;color:var(--accent)}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+  input,select,textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:7px;color:var(--txt);padding:9px 11px;font:14px inherit}
+  textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .hint{font-size:11px;color:var(--muted);margin-top:3px;text-transform:none;font-weight:400;letter-spacing:0}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .actions{display:flex;gap:12px;align-items:center;margin:8px 0 24px;flex-wrap:wrap}
+  button{cursor:pointer;border:none;border-radius:8px;font:600 14px inherit;padding:11px 18px}
+  .primary{background:var(--accent);color:#fff}
+  .primary:hover{background:#2f6fd6}
+  .green{background:var(--accent2);color:#06230f}
+  .green:hover{background:#16a34a;color:#fff}
+  .ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .ghost:hover{border-color:var(--accent)}
+  .pill{font-size:12px;color:var(--muted)}
+  #topicsOut,#blogOut{margin-top:8px}
+  .card{border:1px solid var(--line);border-radius:10px;margin:0 0 14px;background:var(--panel);overflow:hidden}
+  .card-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;background:var(--panel2);border-bottom:1px solid var(--line)}
+  .card-head .t{font-weight:600}
+  .card-head .t span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+  .copy{background:var(--accent2);color:#06230f;padding:7px 14px;border-radius:7px;font-weight:700;font-size:13px}
+  .copy.done{background:#16a34a;color:#fff}
+  pre{margin:0;padding:16px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#cdd6df;max-height:420px;overflow:auto}
+  .vpack-preview{font-size:12px;color:var(--muted);white-space:pre-wrap;background:var(--panel2);border:1px dashed var(--line);border-radius:8px;padding:12px;margin-top:8px;max-height:240px;overflow:auto;display:none}
+  .note{background:#1c2433;border:1px solid #2c3a52;border-radius:8px;padding:12px 14px;font-size:13px;color:#bcd0ec;margin-bottom:18px}
+  .step2{border-color:var(--accent2)}
+  .step2 legend{color:var(--accent2)}
+  .empty{color:var(--muted);text-align:center;padding:40px;border:1px dashed var(--line);border-radius:10px}
+  .attach{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+  .filein{font-size:12px;color:var(--muted);max-width:300px}
+  .filein::file-selector-button{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:600 12px inherit;cursor:pointer;margin-right:8px}
+  .filein::file-selector-button:hover{border-color:var(--accent)}
+  .attach-status{font-size:12px;color:var(--muted)}
+  .attach-status.ok{color:var(--accent2)}
+  .attach-status.err{color:var(--warn)}
+  .split{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+  .tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .tag.c{background:#1b2540;color:#7aa2ff}
+  .tag.i{background:#10301f;color:#5fd99a}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Blog — Prompt Builder</h1>
+  <p>Fill the brief once → Step 1 builds a self-contained <b>Topics</b> prompt → Step 2 builds a self-contained <b>Blog Writing</b> prompt. Paste each into a fresh ChatGPT (or Claude) message — every rule is baked in, no CLAUDE.md required.</p>
+</header>
+
+<div class="wrap">
+  <div class="note">
+    <strong>Flow:</strong> Fill the brief and your 4 keywords → <b>Generate Topics Prompt</b> → run it in ChatGPT → it returns 4 blog topics (title + meta title + meta description, 2 commercial / 2 informational). Then pick a blog below, paste its title, add the 4 internal links → <b>Generate Blog Writing Prompt</b> → run that in a <em>fresh</em> chat to get the full blog + 5 meta tag sets.
+  </div>
+
+  <!-- ── CLIENT BRIEF ── -->
+  <fieldset>
+    <legend>Client Brief — core</legend>
+    <div class="row2">
+      <div><label>Client / Business Name</label><input id="BUSINESS_NAME" placeholder="The Screen Shop"></div>
+      <div><label>Website URL</label><input id="WEBSITE_URL" placeholder="https://www.thescreenshop.com/"></div>
+    </div>
+    <div class="row2">
+      <div><label>Phone <span class="hint">(context only — never printed in the blog)</span></label><input id="PHONE" placeholder="(408) 295-7384"></div>
+      <div><label>Address <span class="hint">(context only — location is NEVER revealed in the blog)</span></label><input id="ADDRESS" placeholder="601 Hamline St, San Jose, CA 95110"></div>
+    </div>
+    <div class="row2">
+      <div>
+        <label>Industry</label>
+        <select id="INDUSTRY"></select>
+        <div class="hint" id="verticalNote"></div>
+      </div>
+      <div><label>Writing Voice</label>
+        <select id="WRITING_VOICE">
+          <option>First Person (we/our) — recommended for blogs</option>
+          <option>Third Person (business by name)</option>
+        </select>
+      </div>
+    </div>
+    <a href="#" id="togglePack" class="pill">▸ Preview the Vertical Pack that will be injected</a>
+    <div class="vpack-preview" id="packPreview"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Brand Identity</legend>
+    <div class="hint" style="margin:0 0 8px">Paste the client's brand details (years in business, family-owned, certifications, licenses, manufacturer partnerships, specializations, guarantees, memberships) and key facts about their services. This gets baked into the prompt for EEAT, so ChatGPT does not have to fetch the site. ChatGPT cannot reliably open most websites, so paste what matters here.</div>
+    <textarea id="BRAND_IDENTITY" style="min-height:110px" placeholder="Years in business, founding year, family-owned, awards, certifications/licenses, manufacturer partnerships, service specializations, guarantees/warranties, memberships, plus a short summary of their main services..."></textarea>
+    <div class="attach">
+      <input type="file" id="BRAND_IDENTITY_file" class="filein" accept=".txt,.md,.csv,.docx,.xlsx,.xls" onchange="attachFile('BRAND_IDENTITY', this)">
+      <span class="attach-status" id="BRAND_IDENTITY_status">…or attach .docx / .xlsx / .csv / .txt — text is extracted into the field</span>
+    </div>
+  </fieldset>
+
+  <!-- ── STEP 1: TOPICS ── -->
+  <fieldset>
+    <legend>Step 1 — Target Keywords (4 blogs)</legend>
+    <div class="split">
+      <span class="tag c">2 Commercial</span>
+      <span class="tag i">2 Informational</span>
+      <span class="pill">The model assigns the best 2 / 2 split automatically.</span>
+    </div>
+    <div class="row2">
+      <div><label>Blog 1 — Keyword</label><input id="KW1" placeholder="replacement windows Campbell, CA"></div>
+      <div><label>Blog 2 — Keyword</label><input id="KW2" placeholder="how long do windows last"></div>
+    </div>
+    <div class="row2">
+      <div><label>Blog 3 — Keyword</label><input id="KW3" placeholder="replacement windows Los Gatos, CA"></div>
+      <div><label>Blog 4 — Keyword</label><input id="KW4" placeholder="energy efficient windows explained"></div>
+    </div>
+    <label style="margin-top:14px">Topics already used <span class="hint">(one per line — so the model avoids repeats across this client's blogs)</span></label>
+    <textarea id="TOPICS_USED" placeholder="Paste blog titles / topics already published for this client, or leave blank"></textarea>
+  </fieldset>
+
+  <div class="actions">
+    <button class="primary" onclick="generateTopics()">Generate Topics Prompt</button>
+    <button class="ghost" onclick="saveBrief()">Save brief to browser</button>
+    <button class="ghost" onclick="loadBrief()">Load saved brief</button>
+    <button class="ghost" onclick="clearAll()">Clear</button>
+    <span class="pill" id="status"></span>
+  </div>
+
+  <div id="topicsOut"></div>
+
+  <!-- ── STEP 2: BLOG WRITING (all 4) ── -->
+  <fieldset class="step2" style="margin-top:10px">
+    <legend>Step 2 — Blog Writing Prompts (all 4)</legend>
+    <div class="hint" style="margin:0 0 12px">After Step 1 returns your 4 topics, fill each blog below: paste its title, set the intent the model assigned, and add the 4 internal links. Keyword and target city auto-fill from Step 1. Then generate all 4 self-contained writing prompts at once. Blogs left without a title are skipped.</div>
+    <div id="blogBlocks"></div>
+    <div class="actions" style="margin:4px 0 0">
+      <button class="green" onclick="generateAllBlogs()">Generate 4 Blog Writing Prompts</button>
+      <button class="ghost" onclick="updateBlockLabels()">↻ Sync keywords from Step 1</button>
+    </div>
+  </fieldset>
+
+  <div id="blogOut"></div>
+</div>
+
+<script>
+/* ===================== VERTICAL PACKS (blog tone) ===================== */
+const PACKS = {
+HOME_IMPROVEMENT:
+`=== VERTICAL PACK: HOME IMPROVEMENT ===
+AUDIENCE: homeowners / "[City] homeowners" / address the reader as "you / your home". Never "families" as the buyer.
+TONE: Confident, expert, benefit- and ROI-driven, practical. Reassure against fly-by-night/scam fears. Professional, not sentimental.
+COMMERCIAL ANGLES: choosing a company or installer; comparing brands, frame materials, or systems; what to look for when hiring; what the installation/replacement process involves; how to evaluate quality; energy-efficiency value; getting an estimate or consultation.
+INFORMATIONAL ANGLES: signs it is time to replace or service; how a system or product works; how long products last; types and options explained; ratings/efficiency labels explained; maintenance and seasonal prep education.
+WORDING — USE: homeowners, your home, energy efficiency, curb appeal, warranty, licensed & insured, installation, upgrade, inspection, options, materials.
+WORDING — AVOID: "loved ones," "compassionate," "family" as the buyer, grief/care language.`,
+
+HOME_CARE:
+`=== VERTICAL PACK: HOME CARE ===
+AUDIENCE: families, often the adult child making the decision. Address "you" as the decision-maker and refer to "your loved one."
+TONE: Compassionate, reassuring, family-centered, AND practical/credible. (Home Health: clinical-but-warm, credibility-forward.)
+COMMERCIAL ANGLES: how to choose a provider; what to look for in a care agency; questions to ask before hiring; how care gets started; how caregivers are screened and matched; what to expect from an assessment.
+INFORMATIONAL ANGLES: signs a loved one may need help at home; in-home care vs a facility; how to pay (for Home Health: Medicare/Medicaid coverage); what services are included; what to do after a hospital stay or a fall; keeping a loved one safe and independent.
+WORDING — USE: caregivers, loved one, independence, safety, peace of mind, consistent care, vetted/screened, dignity, family communication.
+WORDING — AVOID: sales language (deal, quote, upgrade), hard urgency/scarcity, transactional tone.`,
+
+DEATH_CARE:
+`=== VERTICAL PACK: DEATH CARE ===
+AUDIENCE: families / loved ones. NEVER "customers."
+TONE: Reverent, gentle, deeply compassionate, unhurried. NEVER transactional, salesy, urgent, or scarcity-driven.
+COMMERCIAL ANGLES: how to choose a funeral home or cremation provider; what to look for in services; the benefits of pre-planning; what to expect at a first consultation; questions to ask a funeral director.
+INFORMATIONAL ANGLES: what to do in the first hours/days after a loss; burial vs cremation explained; how the cremation process works; memorialization and remembrance options; how to pre-plan, step by step; how to write a meaningful obituary.
+WORDING — USE: honor, remembrance, dignity, guidance, compassionate, peace of mind, support, pre-planning, celebrate a life, loved one.
+WORDING — AVOID: deal, sale, quote, discount, "act now," "limited time," urgency/scarcity, "customers," upbeat/peppy tone.`,
+
+GENERAL:
+`=== VERTICAL PACK: GENERAL / OTHER ===
+AUDIENCE: the client's typical customer — address them as "you."
+TONE: Helpful, expert, conversational but professional. Educational, never hype.
+COMMERCIAL ANGLES: how to choose a provider; what to look for; questions to ask; how the process works; how to evaluate options.
+INFORMATIONAL ANGLES: how things work; common signs/situations; options explained; what to know before deciding; practical tips.
+WORDING — USE: clear, plain, benefit-led language tied to verifiable facts.
+WORDING — AVOID: hype, unverifiable superlatives, anything not supported by the Brand Identity.`
+};
+
+/* ===================== INDUSTRIES → label + vertical pack ===================== */
+const INDUSTRIES = {
+  HVAC:              {label:"HVAC Heating & Cooling",          vertical:"HOME_IMPROVEMENT"},
+  ROOFING:           {label:"Roofing & Siding",                vertical:"HOME_IMPROVEMENT"},
+  WINDOWS_DOORS:     {label:"Windows & Doors / Replacement Windows", vertical:"HOME_IMPROVEMENT"},
+  WINDOW_TREATMENTS: {label:"Window Treatments",               vertical:"HOME_IMPROVEMENT"},
+  IN_HOME_CARE:      {label:"In-Home Care",                    vertical:"HOME_CARE"},
+  HOME_HEALTH:       {label:"Home Health Care",                vertical:"HOME_CARE"},
+  HOSPICE:           {label:"Hospice & Palliative Care",       vertical:"DEATH_CARE"},
+  FUNERAL:           {label:"Funeral Homes & Cremation",       vertical:"DEATH_CARE"},
+  CREMATION:         {label:"Cremation Services (Standalone)", vertical:"DEATH_CARE"},
+  CEMETERY:          {label:"Cemetery",                        vertical:"DEATH_CARE"},
+  OTHER:             {label:"Other / General",                vertical:"GENERAL"}
+};
+const VLABEL = {HOME_IMPROVEMENT:"Home Improvement",HOME_CARE:"Home Care",DEATH_CARE:"Death Care",GENERAL:"General"};
+
+/* ===================== SHARED RULE BLOCKS (baked into prompts) ===================== */
+const GLOBAL_RULES =
+`GLOBAL RULES:
+- No em-dashes (—) anywhere. Use a comma or a colon instead.
+- No exact dollar amounts and NO cost/price framing anywhere ("cost," "price," "how much," "budget," "affordable"). Cost content goes stale; use process, decision, comparison, or educational angles instead.
+- No current or recent-year references (e.g. "in 2026"). Historical founding years are fine.
+- Active voice only. No buzzwords: embark, uncover, unveil, transform, revolutionize, seamless, game-changing, cutting-edge.
+- No clickbait or exaggerated claims. Match the Vertical Pack TONE and audience.`;
+
+const FIELDS = ["BUSINESS_NAME","WEBSITE_URL","PHONE","ADDRESS","INDUSTRY","WRITING_VOICE","BRAND_IDENTITY",
+  "KW1","KW2","KW3","KW4","TOPICS_USED"];
+// per-blog Step 2 field ids (4 blogs): title, intent, city, 4 links each
+for(let n=1;n<=4;n++){FIELDS.push("BT"+n,"BI"+n,"BC"+n,"L"+n+"_BLOG","L"+n+"_CITY","L"+n+"_M1","L"+n+"_M2");}
+
+/* ===================== INIT ===================== */
+function val(id){return (document.getElementById(id).value||"").trim();}
+function currentVertical(){return INDUSTRIES[val("INDUSTRY")]?.vertical || "GENERAL";}
+
+(function init(){
+  const sel = document.getElementById("INDUSTRY");
+  for(const [k,v] of Object.entries(INDUSTRIES)){
+    const o=document.createElement("option");o.value=k;o.textContent=v.label;sel.appendChild(o);
+  }
+  sel.value="WINDOWS_DOORS";
+  sel.addEventListener("change",updateVerticalNote);
+  updateVerticalNote();
+  document.getElementById("togglePack").addEventListener("click",e=>{
+    e.preventDefault();
+    const p=document.getElementById("packPreview");
+    const show = p.style.display==="none"||!p.style.display;
+    p.textContent = PACKS[currentVertical()];
+    p.style.display = show?"block":"none";
+    document.getElementById("togglePack").textContent = (show?"▾":"▸")+" Preview the Vertical Pack that will be injected";
+  });
+  renderBlocks();
+  ["KW1","KW2","KW3","KW4"].forEach(id=>document.getElementById(id).addEventListener("input",updateBlockLabels));
+})();
+
+/* ===================== STEP 2 BLOCKS (4 blogs) ===================== */
+function renderBlocks(){
+  const wrap=document.getElementById("blogBlocks");
+  let html="";
+  for(let n=1;n<=4;n++){
+    const defaultIntent=(n===2||n===4)?"Informational":"Commercial";
+    html+=
+`<div class="card" style="padding:14px 16px;margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px">
+    <div style="font-weight:700;color:var(--accent2)">Blog ${n}</div>
+    <div class="pill" id="kwlab${n}">keyword: —</div>
+  </div>
+  <div class="row2">
+    <div><label>Blog Title <span class="hint">paste from Step 1</span></label><input id="BT${n}" placeholder="Blog ${n} title from Step 1"></div>
+    <div class="row2" style="gap:12px">
+      <div><label>Intent</label><select id="BI${n}"><option${defaultIntent==="Commercial"?" selected":""}>Commercial</option><option${defaultIntent==="Informational"?" selected":""}>Informational</option></select></div>
+      <div><label>Target City <span class="hint">auto</span></label><input id="BC${n}" placeholder="auto from keyword"></div>
+    </div>
+  </div>
+  <div class="row2" style="margin-top:8px">
+    <div><label>Blog Post URL</label><input id="L${n}_BLOG" placeholder="https://site.com/blog/post/"></div>
+    <div><label>City Page URL</label><input id="L${n}_CITY" placeholder="https://site.com/city/"></div>
+    <div><label>Main Page URL 1</label><input id="L${n}_M1" placeholder="https://site.com/services/"></div>
+    <div><label>Main Page URL 2</label><input id="L${n}_M2" placeholder="https://site.com/about/"></div>
+  </div>
+</div>`;
+  }
+  wrap.innerHTML=html;
+  updateBlockLabels();
+}
+function updateBlockLabels(){
+  for(let n=1;n<=4;n++){
+    const kw=val("KW"+n);
+    const lab=document.getElementById("kwlab"+n);
+    if(lab) lab.textContent = "keyword: "+(kw||"—");
+    const bc=document.getElementById("BC"+n);
+    if(bc && !bc.value){ const c=extractCity(kw); if(c) bc.value=c; }
+  }
+}
+
+function updateVerticalNote(){
+  const v=currentVertical();
+  document.getElementById("verticalNote").textContent = "Vertical Pack: "+VLABEL[v]+" (tone, audience & blog angles baked into every prompt).";
+  const p=document.getElementById("packPreview");
+  if(p.style.display==="block") p.textContent=PACKS[v];
+}
+
+/* ===================== FILE ATTACH (brand doc) ===================== */
+async function attachFile(field,input){
+  const file=input.files[0]; if(!file) return;
+  const st=document.getElementById(field+"_status");
+  st.className="attach-status"; st.textContent="Reading "+file.name+"…";
+  try{
+    const ext=file.name.split(".").pop().toLowerCase();
+    let text="";
+    if(ext==="docx"){
+      const buf=await file.arrayBuffer();
+      const res=await mammoth.extractRawText({arrayBuffer:buf});
+      text=res.value;
+    }else if(ext==="xlsx"||ext==="xls"){
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:"array"});
+      text=wb.SheetNames.map(n=>XLSX.utils.sheet_to_csv(wb.Sheets[n])).join("\n");
+    }else{
+      text=await file.text();
+    }
+    const ta=document.getElementById(field);
+    ta.value=(ta.value.trim()?ta.value.trim()+"\n\n":"")+text.trim();
+    st.className="attach-status ok"; st.textContent="✓ Added text from "+file.name;
+  }catch(err){
+    st.className="attach-status err"; st.textContent="Could not read that file. Re-save as .docx/.xlsx/.csv/.txt or paste the text.";
+  }
+}
+
+/* ===================== HELPERS ===================== */
+function extractCity(keyword){
+  const m=keyword.match(/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*),\s*([A-Z]{2})\s*$/);
+  return m ? m[1].trim()+", "+m[2] : "";
+}
+function briefBlock(){
+  const v=currentVertical();
+  const addr=val("ADDRESS"), phone=val("PHONE");
+  return (
+`CLIENT / BUSINESS NAME: ${val("BUSINESS_NAME")||"[not provided]"}
+WEBSITE: ${val("WEBSITE_URL")||"[not provided]"}${phone?`\nPHONE (context only — do NOT print in the blog): ${phone}`:""}${addr?`\nADDRESS (context only — NEVER reveal the location or the physical city in the blog): ${addr}`:""}
+INDUSTRY: ${INDUSTRIES[val("INDUSTRY")]?.label||"General"}
+WRITING VOICE: ${val("WRITING_VOICE")}
+
+${PACKS[v]}`);
+}
+function brandBlock(){
+  const b=val("BRAND_IDENTITY");
+  return `BRAND IDENTITY (use ONLY these verifiable facts for EEAT — never invent services, staff, awards, or claims):
+${b||"[none provided — keep all trust signals generic and verifiable; do not invent specifics]"}`;
+}
+
+/* ===================== STEP 1: TOPICS PROMPT ===================== */
+function generateTopics(){
+  if(!val("BUSINESS_NAME")){alert("Enter the client / business name.");return;}
+  const kws=[val("KW1"),val("KW2"),val("KW3"),val("KW4")];
+  if(kws.some(k=>!k)){alert("Enter all 4 target keywords.");return;}
+  const used=val("TOPICS_USED");
+
+  const prompt=
+`You are an expert SEO content strategist for Ring Ring Marketing specializing in client blogs. Follow every rule exactly. Use the Vertical Pack below for audience, tone, and topic angles.
+
+TASK: Produce EXACTLY 4 blog topics for the client below — one per keyword, in order. For each: a Blog Title, a Meta Title, and a Meta Description. Assign intent so the final split is EXACTLY 2 Commercial and 2 Informational. Output ONLY the 4 entries in the format shown — no preamble, no commentary.
+
+=== CLIENT BRIEF ===
+${briefBlock()}
+
+TARGET KEYWORDS (one blog each, in this order):
+Blog 1: ${kws[0]}
+Blog 2: ${kws[1]}
+Blog 3: ${kws[2]}
+Blog 4: ${kws[3]}
+
+TOPICS ALREADY USED (never repeat or closely echo these angles):
+${used||"none"}
+
+${GLOBAL_RULES}
+
+INTENT ASSIGNMENT:
+- Exactly 2 Commercial and 2 Informational across the 4 blogs.
+- Generic/educational keywords lean Informational; "how to choose / best / what to look for" and city-based keywords can go either way — prefer Commercial when you need to balance to 2 / 2.
+- If all 4 are city-based, alternate: slots 1 and 3 Commercial, slots 2 and 4 Informational.
+- Use the COMMERCIAL ANGLES / INFORMATIONAL ANGLES in the Vertical Pack to pick the right framing for each.
+
+BLOG TITLE RULES:
+- 55–75 characters including spaces (aim 60–70). All 4 titles unique, even if two keywords are the same city.
+- Include the primary keyword or a close natural variation. For city-based keywords, include the city naturally (e.g. "in Campbell, CA" or "Campbell Homeowners"). For generic keywords, city is optional.
+- Active phrasing. Reads like a helpful article headline, not a service-page tag.
+- No business name. No generic openers ("The Ultimate Guide to…", "Everything You Need to Know About…").
+
+META TITLE RULES (each):
+- 56–58 characters including spaces. Separator: hyphen ( - ), never a pipe ( | ).
+- Editorial and descriptive — reads like a blog post headline, not a keyword-stuffed local SEO tag.
+- Use a natural variation of the keyword — do NOT use the exact target keyword phrase verbatim.
+- No business name. All 4 unique.
+
+META DESCRIPTION RULES (each):
+- 140–160 characters including spaces.
+- The business name (CLIENT) appears EXACTLY ONCE.
+- End with a soft, blog-appropriate CTA (e.g. "Read the article to learn more.", "Find out more in this post.", "Discover the full breakdown here.", "See what the experts say in this article."). Never a service-page push ("Call us today.", "Get a free estimate.").
+- Active voice, conversational. Vary business-name placement across the 4: Blog 1 near the beginning; Blog 2 in the middle; Blog 3 near the beginning (different opening than Blog 1); Blog 4 at the end.
+
+OUTPUT FORMAT (exactly this, plain text, nothing else):
+CLIENT: ${val("BUSINESS_NAME")}
+VERTICAL: ${INDUSTRIES[val("INDUSTRY")]?.label||"General"}
+─────────────────────────────────────────
+
+Blog 1 — ${kws[0]}
+Intent:
+Title:
+Meta Title:
+Meta Description:
+
+Blog 2 — ${kws[1]}
+Intent:
+Title:
+Meta Title:
+Meta Description:
+
+Blog 3 — ${kws[2]}
+Intent:
+Title:
+Meta Title:
+Meta Description:
+
+Blog 4 — ${kws[3]}
+Intent:
+Title:
+Meta Title:
+Meta Description:`;
+
+  renderCard("topicsOut","Topics Prompt — paste into a fresh ChatGPT (or Claude) chat","topicsCopy",prompt);
+  document.getElementById("topicsOut").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ===================== STEP 2: BLOG WRITING PROMPTS (all 4) ===================== */
+function buildBlogPrompt(n){
+  const slot=String(n);
+  const kw=val("KW"+n);
+  const city=val("BC"+n);
+  const intent=val("BI"+n)||"Commercial";
+  const links=[val("L"+n+"_BLOG"),val("L"+n+"_CITY"),val("L"+n+"_M1"),val("L"+n+"_M2")];
+  const voiceIsFirst = val("WRITING_VOICE").startsWith("First");
+
+  const intentGuide = intent==="Commercial"
+    ? `INTENT = COMMERCIAL — the reader is close to a decision. Focus on what to look for, what questions to ask, what the process involves, how to evaluate options, and what separates good providers from bad ones. Use the Vertical Pack COMMERCIAL ANGLES.`
+    : `INTENT = INFORMATIONAL — the reader is researching. Focus on education, context, how things work, and what the reader should understand before they are ready to decide. Use the Vertical Pack INFORMATIONAL ANGLES.`;
+
+  const prompt=
+`You are an expert SEO blog writer for Ring Ring Marketing. Write a COMPLETE blog post for the client below, then output 5 meta tag sets. Follow every rule exactly. Use the Vertical Pack for audience, tone, and angle. No preamble, no commentary — output only the blog and then the meta tags.
+
+=== CLIENT BRIEF ===
+${briefBlock()}
+
+THIS BLOG:
+- Blog slot: Blog ${slot} of 4
+- Blog Title (use as the article's working title / first H1 idea): ${val("BT"+n)}
+- Focus keyword: ${kw}
+- Target city (use service-area language; never name another city as the home base): ${city||"[none — write as a non-local/general topic]"}
+- ${intentGuide}
+
+${brandBlock()}
+
+RESEARCH BEFORE WRITING (use what is available to you):
+- Step 1: Read the BRAND IDENTITY above carefully, word by word — understand what this kind of business does and does not do, their pain points, and what their customers want.
+- Step 2: If you can browse, crawl ${val("WEBSITE_URL")||"the client website"} to learn who they are, what they do, and how they are different.
+- Step 3: If you can browse, also search the web for verifiable context about this business.
+- Use ONLY verifiable facts. Never invent services, staff, awards, or claims. If you cannot browse, rely solely on the BRAND IDENTITY.
+
+${GLOBAL_RULES}
+
+TONE & VOICE:
+- Write with Neil Patel's SEO sensibility: genuinely helpful, clear, and structured for search, written for humans first.
+- ${voiceIsFirst ? "First-person plural throughout (we, our, us) — the business speaks to the reader. Address the reader as \"you\" / \"your\"." : "Third person — refer to the business by name where natural. Still address the reader as \"you\" / \"your\"."}
+- Spartan, conversational but not too casual, and still professional. Authoritative, from practical on-the-ground expertise. Match the Vertical Pack TONE.
+- Vary sentence length and structure to avoid monotony. Use transition words to guide the reader. No overuse of the imperative; no salesy openers. Avoid overusing similes.
+- Use real, plausible examples — never fictional people, companies, or scenarios.
+
+STRUCTURE:
+- 500–800 words (blog body only — does not include the meta tag section).
+- Flow: opening section → body sections → closing section. Do NOT use the literal headings "Introduction," "Body," or "Conclusion."
+- H2 for main sections, H3 for sub-points where useful. Short paragraphs (2–4 sentences each).
+- Include at least one direct-answer paragraph or a short bulleted list optimized for featured snippets.
+- Reads as a complete, standalone article — not a page stub.
+
+E-E-A-T:
+- Scan BRAND IDENTITY for trust signals in this priority: (1) certifications/licenses/authorizations/manufacturer partnerships, (2) years in business / founding year, (3) service specializations / niche expertise, (4) guarantees/warranties/commitments, (5) industry memberships.
+- Work at least one of these in naturally (opening or body) — never as a standalone boast. Include at least one specific, practical tip the reader can use.
+- No vague trust phrases ("we're the best," "trusted by thousands") unless a specific fact in BRAND IDENTITY backs it up. Use ONLY verifiable facts — do not invent services, staff, awards, or claims.
+
+KEYWORD RULES:
+- Use the focus keyword EXACTLY TWICE: the 1st mention is in the first paragraph (this exact phrase is the anchor text for the City Page Link — see Internal Links); the 2nd mention is in the last paragraph (no link). Use synonyms and natural variations everywhere else. No single phrase appears more than 3 times total. Write for humans.
+
+CONTENT RESTRICTIONS:
+- No mention of repairs being DIY / do-it-yourself. Do not mention the business's physical address anywhere. Do not name any other city as the business's home base or nearest location — use service-area language for the target city.
+- Business name appears NO MORE THAN TWICE in the entire article.
+
+INTERNAL LINKS — embed all 4, spread across DIFFERENT sections (never two in one paragraph), all anchor text flowing naturally mid-sentence (never "click here," "learn more," or "visit this page"):
+1. Blog Post Link → ${links[0]}
+   Anchor: a descriptive phrase about that post's topic.
+2. City Page Link → ${links[1]}
+   Anchor: the FIRST mention of the focus keyword in the first paragraph — hyperlink that exact phrase. Do not create separate anchor text for this link.
+3. Main Page Link 1 → ${links[2]}
+   Anchor: a service keyword variation, no city/state suffix.
+4. Main Page Link 2 → ${links[3]}
+   Anchor: a service keyword variation, no city/state suffix.
+
+CLOSING PARAGRAPH:
+- No phone number, no hard CTA. Close with a soft brand mention that ties back to the article's final point (one sentence is enough), e.g. "Our team at ${val("BUSINESS_NAME")} is here to help ${city||"local"} ${currentVertical()==="HOME_IMPROVEMENT"?"homeowners":"families"} navigate the process." It must connect to the article, not read as a standalone ad.
+
+THEN OUTPUT — 5 META TAG SETS (clearly labeled, after the blog). Each set = Meta Title + H1 + Meta Description. All 5 unique.
+- Meta Title: 56–58 chars incl. spaces; hyphen ( - ) separator never a pipe; editorial blog headline; focus keyword or close variation; no business name.
+- H1: 55–75 chars incl. spaces; must differ from the Meta Title; a complete natural thought; no business name.
+- Meta Description: 140–160 chars incl. spaces; business name exactly once; end with a soft blog CTA (e.g. "Read the article to learn more." / "Find out more in this guide.") never a service push; no em-dashes; no cost/price.
+- Business-name placement across the 5: Set 1 question opening, name in middle; Set 2 question opening, name at end; Set 3 non-question, name at beginning; Set 4 non-question, name in middle; Set 5 non-question, name at end.
+
+OUTPUT ORDER: (1) the complete blog post, (2) the 5 meta tag sets, (3) nothing else.`;
+
+  return prompt;
+}
+
+function generateAllBlogs(){
+  if(!val("BUSINESS_NAME")){alert("Fill the client brief in Step 1 first.");return;}
+  const ready=[];
+  const missing=[];
+  for(let n=1;n<=4;n++){
+    const title=val("BT"+n);
+    if(!title){continue;} // skip blogs with no title
+    const links=[val("L"+n+"_BLOG"),val("L"+n+"_CITY"),val("L"+n+"_M1"),val("L"+n+"_M2")];
+    if(links.some(l=>!l)){missing.push(n);continue;}
+    ready.push(n);
+  }
+  if(missing.length){alert("Blog "+missing.join(", ")+" has a title but is missing one or more of its 4 internal links. Fill those in (or clear the title to skip).");return;}
+  if(!ready.length){alert("Paste at least one blog title (and its 4 internal links) to generate.");return;}
+
+  const items=ready.map(n=>({
+    title:"Blog "+n+" — "+(val("KW"+n)||val("BT"+n))+"  •  paste into a FRESH chat",
+    text:buildBlogPrompt(n)
+  }));
+  renderCards("blogOut",items,"All "+items.length+" blog writing prompts — run each in its own fresh chat");
+  document.getElementById("blogOut").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ===================== RENDER + COPY ===================== */
+function renderCard(mount,title,copyId,text){
+  const el=document.getElementById(mount);
+  el.innerHTML="";
+  appendCard(el,title,text);
+}
+function renderCards(mount,items,heading){
+  const el=document.getElementById(mount);
+  el.innerHTML="";
+  if(heading){
+    const h=document.createElement("div");
+    h.className="note";h.style.margin="0 0 12px";
+    h.innerHTML="<strong>"+heading+".</strong> Each prompt is fully self-contained.";
+    el.appendChild(h);
+  }
+  items.forEach(it=>appendCard(el,it.title,it.text));
+}
+function appendCard(el,title,text){
+  const card=document.createElement("div");card.className="card";
+  const head=document.createElement("div");head.className="card-head";
+  const t=document.createElement("div");t.className="t";t.textContent=title;
+  const btn=document.createElement("button");btn.className="copy";btn.textContent="Copy";
+  btn.onclick=()=>{navigator.clipboard.writeText(text).then(()=>{btn.textContent="Copied ✓";btn.classList.add("done");setTimeout(()=>{btn.textContent="Copy";btn.classList.remove("done");},2200);});};
+  head.appendChild(t);head.appendChild(btn);
+  const pre=document.createElement("pre");pre.textContent=text;
+  card.appendChild(head);card.appendChild(pre);el.appendChild(card);
+}
+
+/* ===================== SAVE / LOAD / CLEAR ===================== */
+const LS_KEY="rrm_blog_prompt_builder";
+function saveBrief(){
+  const data={};FIELDS.forEach(f=>{const el=document.getElementById(f);if(el)data[f]=el.value;});
+  localStorage.setItem(LS_KEY,JSON.stringify(data));
+  flash("Saved to this browser.");
+}
+function loadBrief(){
+  const raw=localStorage.getItem(LS_KEY);
+  if(!raw){flash("No saved brief found.");return;}
+  const data=JSON.parse(raw);
+  FIELDS.forEach(f=>{const el=document.getElementById(f);if(el&&data[f]!==undefined)el.value=data[f];});
+  updateVerticalNote();updateBlockLabels();flash("Loaded saved brief.");
+}
+function clearAll(){
+  if(!confirm("Clear all fields?"))return;
+  FIELDS.forEach(f=>{const el=document.getElementById(f);if(el)el.value="";});
+  document.getElementById("INDUSTRY").value="WINDOWS_DOORS";
+  document.getElementById("WRITING_VOICE").selectedIndex=0;
+  document.getElementById("topicsOut").innerHTML="";
+  document.getElementById("blogOut").innerHTML="";
+  updateVerticalNote();updateBlockLabels();flash("Cleared.");
+}
+function flash(msg){const s=document.getElementById("status");s.textContent=msg;setTimeout(()=>{if(s.textContent===msg)s.textContent="";},2500);}
+</script>
+</body>
+</html>
