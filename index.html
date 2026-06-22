@@ -59,6 +59,14 @@
   .tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
   .tag.c{background:#1b2540;color:#7aa2ff}
   .tag.i{background:#10301f;color:#5fd99a}
+  .docpreview{background:#fff;color:#111;padding:18px 22px;border-radius:0 0 10px 10px}
+  .docpreview h2{font-size:18px;margin:18px 0 8px;font-family:Calibri,Arial,sans-serif}
+  .docpreview h3{font-size:15px;margin:14px 0 6px;font-family:Calibri,Arial,sans-serif}
+  .docpreview p{margin:0 0 12px;line-height:1.55;font-family:Calibri,Arial,sans-serif;font-size:14px}
+  .docpreview ul{margin:0 0 12px 22px}
+  .docpreview li{margin:0 0 6px;line-height:1.5;font-family:Calibri,Arial,sans-serif;font-size:14px}
+  .docpreview a{color:#1155cc;text-decoration:underline}
+  .docpreview strong{font-weight:700}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -154,6 +162,27 @@
   </fieldset>
 
   <div id="blogOut"></div>
+
+  <!-- ── FORMAT FOR WORD ── -->
+  <fieldset style="margin-top:28px">
+    <legend>Format the blog for Word (live hyperlinks)</legend>
+    <div class="hint" style="margin:0 0 10px">Paste the AI's blog output below (the Markdown, with <code>[anchor](url)</code> links and <code>**bold**</code>) and click <b>Clean for Word</b>. It turns the draft into formatted text with real <em>clickable</em> hyperlinks on the anchor words, headings, and bold labels — so the links carry over when you paste into your Word doc. Or download a ready-made <b>.doc</b>.</div>
+    <textarea id="wordInput" style="min-height:140px" placeholder="Paste the full blog output here…"></textarea>
+    <div class="actions" style="margin:12px 0 0">
+      <button class="primary" onclick="cleanForWord()">Clean for Word</button>
+      <button class="ghost" onclick="downloadDoc()">⬇ Download Word (.doc)</button>
+      <span class="pill" id="wordStatus"></span>
+    </div>
+    <div id="wordWrap" style="display:none;margin-top:14px">
+      <div class="card">
+        <div class="card-head">
+          <div class="t">Cleaned output <span>— copy keeps links &amp; bold</span></div>
+          <button class="copy" id="wordCopy" onclick="copyForWord()">Copy for Word</button>
+        </div>
+        <div id="wordPreview" class="docpreview"></div>
+      </div>
+    </div>
+  </fieldset>
 </div>
 
 <script>
@@ -356,7 +385,7 @@ function generateTopics(){
   const prompt=
 `You are an expert SEO content strategist for Ring Ring Marketing specializing in client blogs. Follow every rule exactly. Use the Vertical Pack below for audience, tone, and topic angles.
 
-TASK: Produce EXACTLY 4 blog topics for the client below — one per keyword, in order. For each: a Blog Title, a Meta Title, and a Meta Description. Assign intent so the final split is EXACTLY 2 Commercial and 2 Informational. Output ONLY the 4 entries in the format shown — no preamble, no commentary.
+TASK: Produce EXACTLY 4 blog topics for the client below — one per keyword, in order. For each: a Blog Title, a Meta Title, and a Meta Description (the meta here is a PLANNING PREVIEW for topic approval — see the note in the output format). Assign intent so the final split is EXACTLY 2 Commercial and 2 Informational. Output ONLY the 4 entries in the format shown — no preamble, no commentary.
 
 === CLIENT BRIEF ===
 ${briefBlock()}
@@ -415,6 +444,8 @@ META DESCRIPTION RULES (each):
 OUTPUT FORMAT (exactly this, plain text, nothing else):
 CLIENT: ${val("BUSINESS_NAME")}
 VERTICAL: ${INDUSTRIES[val("INDUSTRY")]?.label||"General"}
+─────────────────────────────────────────
+NOTE: The Meta Title and Meta Description below are a PLANNING PREVIEW for approving the topic only. The final, content-aware meta tags (5 sets, each with an H1) are generated in Step 2 after the blog is written.
 ─────────────────────────────────────────
 
 Blog 1 — ${kws[0]}
@@ -481,6 +512,11 @@ RESEARCH BEFORE WRITING (use what is available to you):
 
 ${GLOBAL_RULES}
 
+OUTPUT FORMATTING (so the draft converts cleanly to a Word doc with working links):
+- Write the blog in Markdown. Section headings use "## " (H2) and "### " (H3). Emphasis uses **bold**.
+- EVERY internal link MUST use Markdown link syntax: [anchor text](https://full-url). Wrap the actual anchor WORDS in the brackets — never paste a bare URL, never just describe the link in prose. The anchor phrase itself becomes the clickable hyperlink.
+- Do not output a title/H1 line at the top of the body — start at the opening paragraph. (The H1 is delivered in the meta sets.)
+
 TONE & VOICE:
 - Write with Neil Patel's SEO sensibility: genuinely helpful, clear, and structured for search, written for humans first.
 - ${voiceIsFirst ? "First-person plural throughout (we, our, us) — the business speaks to the reader. Address the reader as \"you\" / \"your\"." : "Third person — refer to the business by name where natural. Still address the reader as \"you\" / \"your\"."}
@@ -507,15 +543,11 @@ CONTENT RESTRICTIONS:
 - No mention of repairs being DIY / do-it-yourself. Do not mention the business's physical address anywhere. Do not name any other city as the business's home base or nearest location — use service-area language for the target city.
 - Business name appears NO MORE THAN TWICE in the entire article.
 
-INTERNAL LINKS — embed all 4, spread across DIFFERENT sections (never two in one paragraph), all anchor text flowing naturally mid-sentence (never "click here," "learn more," or "visit this page"):
-1. Blog Post Link → ${links[0]}
-   Anchor: a descriptive phrase about that post's topic.
-2. City Page Link → ${links[1]}
-   Anchor: the FIRST mention of the focus keyword in the first paragraph — hyperlink that exact phrase. Do not create separate anchor text for this link.
-3. Main Page Link 1 → ${links[2]}
-   Anchor: a service keyword variation, no city/state suffix.
-4. Main Page Link 2 → ${links[3]}
-   Anchor: a service keyword variation, no city/state suffix.
+INTERNAL LINKS — embed all 4 using Markdown [anchor](url) syntax, spread across DIFFERENT sections (never two in one paragraph), every anchor flowing naturally mid-sentence (never "click here," "learn more," or "visit this page"):
+1. Blog Post Link: write as [a descriptive phrase about that post's topic](${links[0]}).
+2. City Page Link: the FIRST mention of the focus keyword in the first paragraph IS this link — wrap that exact phrase: [${kw}](${links[1]}). Do not create separate anchor text and do not link the keyword anywhere else.
+3. Main Page Link 1: write as [a service keyword variation, no city/state suffix](${links[2]}).
+4. Main Page Link 2: write as [a service keyword variation, no city/state suffix](${links[3]}).
 
 CLOSING PARAGRAPH:
 - No phone number, no hard CTA. Close with a soft brand mention that ties back to the article's final point (one sentence is enough), e.g. "Our team at ${val("BUSINESS_NAME")} is here to help ${city||"local"} ${currentVertical()==="HOME_IMPROVEMENT"?"homeowners":"families"} navigate the process." It must connect to the article, not read as a standalone ad.
@@ -579,6 +611,71 @@ function appendCard(el,title,text){
   head.appendChild(t);head.appendChild(btn);
   const pre=document.createElement("pre");pre.textContent=text;
   card.appendChild(head);card.appendChild(pre);el.appendChild(card);
+}
+
+/* ===================== FORMAT FOR WORD ===================== */
+function mdToHtml(md){
+  const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const inline=s=>{
+    s=esc(s);
+    s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,'<a href="$2">$1</a>'); // links
+    s=s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");                      // bold
+    return s;
+  };
+  const lines=md.replace(/\r\n/g,"\n").split("\n");
+  const out=[]; let list=null;
+  const flush=()=>{ if(list){ out.push("<ul>"+list.join("")+"</ul>"); list=null; } };
+  for(const raw of lines){
+    const line=raw.trim();
+    if(!line){ flush(); continue; }
+    let m;
+    if(m=line.match(/^###\s+(.*)/)){ flush(); out.push("<h3>"+inline(m[1])+"</h3>"); }
+    else if(m=line.match(/^##\s+(.*)/)){ flush(); out.push("<h2>"+inline(m[1])+"</h2>"); }
+    else if(m=line.match(/^#\s+(.*)/)){ flush(); out.push("<h2>"+inline(m[1])+"</h2>"); }
+    else if(m=line.match(/^[-*•]\s+(.*)/)){ if(!list)list=[]; list.push("<li>"+inline(m[1])+"</li>"); }
+    else { flush(); out.push("<p>"+inline(line)+"</p>"); }
+  }
+  flush();
+  return out.join("\n");
+}
+function cleanForWord(){
+  const md=val("wordInput");
+  if(!md){ document.getElementById("wordStatus").textContent="Paste the blog output first."; return; }
+  document.getElementById("wordPreview").innerHTML=mdToHtml(md);
+  document.getElementById("wordWrap").style.display="block";
+  document.getElementById("wordStatus").textContent="Cleaned — copy it, or download the .doc.";
+  document.getElementById("wordWrap").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function copyForWord(){
+  const el=document.getElementById("wordPreview");
+  if(!el.innerHTML){ return; }
+  const btn=document.getElementById("wordCopy");
+  const done=()=>{ btn.textContent="Copied ✓"; btn.classList.add("done"); setTimeout(()=>{btn.textContent="Copy for Word";btn.classList.remove("done");},2200); };
+  try{
+    const data=[new ClipboardItem({
+      "text/html":new Blob([el.innerHTML],{type:"text/html"}),
+      "text/plain":new Blob([el.innerText],{type:"text/plain"})
+    })];
+    navigator.clipboard.write(data).then(done,()=>fallbackCopy(el,done));
+  }catch(e){ fallbackCopy(el,done); }
+}
+function fallbackCopy(el,done){
+  const r=document.createRange();r.selectNodeContents(el);
+  const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r);
+  try{ document.execCommand("copy"); done(); }catch(e){}
+  sel.removeAllRanges();
+}
+function downloadDoc(){
+  let html=document.getElementById("wordPreview").innerHTML;
+  if(!html){ const md=val("wordInput"); if(!md){document.getElementById("wordStatus").textContent="Paste the blog output first.";return;} html=mdToHtml(md); }
+  const doc='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Blog</title></head><body style="font-family:Calibri,Arial,sans-serif">'+html+'</body></html>';
+  const blob=new Blob(["﻿"+doc],{type:"application/msword"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=((val("BUSINESS_NAME")||"blog").replace(/[\\/:*?"<>|]/g,"")+" - blog.doc");
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  document.getElementById("wordStatus").textContent="Downloaded .doc.";
 }
 
 /* ===================== SAVE / LOAD / CLEAR ===================== */
